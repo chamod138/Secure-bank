@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SecureBank – Reset Password</title>
+  <!-- Shared stylesheet used by all 3 pages -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+
+<div class="page">
+
+  <!-- ---- SecureBank branding ---- -->
+  <div class="bank-header">
+    <div class="bank-logo">
+      <!-- Bank building icon (same icon used on all pages) -->
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2L2 7v2h20V7L12 2zm-8 9v6H2v2h20v-2h-2v-6h-2v6h-4v-6h-2v6H8v-6H4zm8-5a1 1 0 110 2 1 1 0 010-2z"/>
+        </svg>
+      </div>
+      <span class="bank-name">SecureBank</span>
+    </div>
+    <div class="bank-sub">Online Banking Portal</div>
+  </div>
+
+ 
+  <div class="card" id="reset-card">
+    <div class="card-title">Reset your password</div>
+    <div class="card-sub">
+      Enter the email address linked to your account and we'll send you a reset link.
+    </div>
+
+    <!-- Error alert – shown if the user submits without an email -->
+    <div class="alert alert-danger" id="alert-error" role="alert">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+      </svg>
+      <span id="alert-error-text">Please enter a valid email address.</span>
+    </div>
+
+    <!-- ---- Email input field ---- -->
+    <div class="field">
+      <label for="email">Email address</label>
+      <input
+        type="email"
+        id="email"
+        placeholder="e.g. john.doe@email.com"
+        autocomplete="email"
+      />
+    </div>
+
+    <!-- Send Reset Link button – calls sendReset() on click -->
+    <button class="btn btn-primary" id="send-btn" onclick="sendReset()">
+      Send Reset Link
+    </button>
+
+    <hr class="divider" />
+
+    <!-- Link back to the login page -->
+    <div class="link-row">
+      <a href="login.html">&larr; Back to Sign In</a>
+    </div>
+  </div><!-- end #reset-card -->
+
+ 
+    <div class="success-box">
+
+      <!-- Green envelope / checkmark icon -->
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <!-- Envelope with a check inside -->
+          <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+        </svg>
+      </div>
+
+      <div class="lock-title" style="color:#1e5c2b">Check your inbox</div>
+
+      <!-- Confirmation message – email address is inserted by JS -->
+      <div class="lock-msg" style="margin-top:8px;line-height:1.6;">
+        A reset link has been sent to<br />
+        <strong id="confirm-email" style="color:#1a2535"></strong>
+      </div>
+
+      <div style="font-size:12px;color:#8a95a3;margin-top:12px;">
+        If you don't see it within a few minutes, check your spam folder.
+      </div>
+
+      <hr class="divider" style="margin-top:1.25rem" />
+
+      <!-- Allow the user to go back to login or try a different email -->
+      <div class="link-row">
+        <a href="login.html">&larr; Return to Sign In</a>
+        &nbsp;&middot;&nbsp;
+        <a onclick="resetForm()" style="cursor:pointer">Try a different email</a>
+      </div>
+    </div>
+  </div><!-- end #confirm-card -->
+
+</div><!-- end .page -->
+
+
+<script>
+
+  function sendReset() {
+    const emailInput = document.getElementById('email');
+    const email = emailInput.value.trim();
+
+    // Hide any previous error
+    document.getElementById('alert-error').classList.remove('show');
+    emailInput.classList.remove('error');
+
+    // Basic validation: field must not be empty
+    if (!email) {
+      document.getElementById('alert-error-text').textContent =
+        'Please enter your email address.';
+      document.getElementById('alert-error').classList.add('show');
+      emailInput.classList.add('error');
+      emailInput.focus();
+      return;
+    }
+
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(email)) {
+      document.getElementById('alert-error-text').textContent =
+        'Please enter a valid email address (e.g. name@example.com).';
+      document.getElementById('alert-error').classList.add('show');
+      emailInput.classList.add('error');
+      emailInput.focus();
+      return;
+    }
+
+    // --- Validation passed ---
+
+    // Display the submitted email address in the confirmation message
+    document.getElementById('confirm-email').textContent = email;
+
+    // Swap cards: hide the form, show the confirmation
+    document.getElementById('reset-card').style.display   = 'none';
+    document.getElementById('confirm-card').style.display = 'block';
+  }
+
+
+  function resetForm() {
+    // Clear the field and any error state
+    document.getElementById('email').value = '';
+    document.getElementById('email').classList.remove('error');
+    document.getElementById('alert-error').classList.remove('show');
+
+    // Swap cards: show the form, hide the confirmation
+    document.getElementById('reset-card').style.display   = 'block';
+    document.getElementById('confirm-card').style.display = 'none';
+  }
+
+
+  document.getElementById('email').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      sendReset();
+    }
+  });
+</script>
+
+</body>
+</html>

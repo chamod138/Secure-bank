@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SecureBank – Sign In</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="page">
+
+  <div class="bank-header">
+    <div class="bank-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2L2 7v2h20V7L12 2zm-8 9v6H2v2h20v-2h-2v-6h-2v6h-4v-6h-2v6H8v-6H4zm8-5a1 1 0 110 2 1 1 0 010-2z"/>
+        </svg>
+      </div>
+      <span class="bank-name">SecureBank</span>
+    </div>
+    <div class="bank-sub">Online Banking Portal</div>
+  </div>
+
+  <!-- ================================================================
+       CARD 1: Login Form
+       ================================================================ -->
+  <div class="card" id="login-card">
+    <div class="card-title">Sign in</div>
+    <div class="card-sub">Enter your credentials to access your account</div>
+
+    <!-- Error alert – shown on wrong credentials (1–2 attempts) -->
+    <div class="alert alert-danger" id="alert-error" role="alert">
+      <!-- Warning icon -->
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+      </svg>
+      <span id="alert-error-text">Incorrect username or password.</span>
+    </div>
+
+    <!-- Warning alert – shown at 3 or 4 attempts (account about to lock) -->
+    <div class="alert alert-warning" id="alert-warn" role="alert">
+      <!-- Triangle warning icon -->
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+      </svg>
+      <span id="alert-warn-text"></span>
+    </div>
+
+    <!-- ---- Failed-attempt tracker (5 coloured dots + counter) ---- -->
+    <!-- Hidden until the first failed attempt -->
+    <div class="attempt-bar" id="attempt-bar" style="display:none">
+      <div class="attempt-label">
+        <span>Failed login attempts</span>
+        <span id="attempt-count">0 / 5</span>
+      </div>
+      <!-- Each dot turns red on a failed attempt -->
+      <div class="attempt-dots">
+        <div class="dot" id="d1"></div>
+        <div class="dot" id="d2"></div>
+        <div class="dot" id="d3"></div>
+        <div class="dot" id="d4"></div>
+        <div class="dot" id="d5"></div>
+      </div>
+    </div>
+
+    <!-- ---- Username field ---- -->
+    <div class="field">
+      <label for="username">Username</label>
+      <input
+        type="text"
+        id="username"
+        placeholder="e.g. john.doe"
+        autocomplete="username"
+      />
+    </div>
+
+    <!-- ---- Password field ---- -->
+    <div class="field">
+      <label for="password">Password</label>
+      <input
+        type="password"
+        id="password"
+        placeholder="Enter your password"
+        autocomplete="current-password"
+      />
+    </div>
+
+    <!-- Sign In button – calls handleLogin() on click -->
+    <button class="btn btn-primary" id="login-btn" onclick="handleLogin()">
+      Sign in
+    </button>
+
+    <hr class="divider" />
+
+    <!-- "Forgot password?" takes the user to the reset page -->
+    <div class="link-row">
+      <a href="reset.html">Forgot password?</a>
+    </div>
+  </div><!-- end #login-card -->
+
+  <!-- ================================================================
+       CARD 2: Account Locked Screen
+       ================================================================ -->
+  <div class="card" id="locked-card" style="display:none">
+    <div class="locked-box">
+      <!-- Lock icon in a red circle -->
+      <div class="lock-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+        </svg>
+      </div>
+      <div class="lock-title">Account Temporarily Locked</div>
+      <div class="lock-msg">
+        Too many failed sign-in attempts. Please wait for the timer to expire.
+      </div>
+      <!-- Countdown timer – counts down from 10:00 -->
+      <div class="countdown" id="countdown" aria-live="polite">10:00</div>
+      <div class="lock-note">A security alert has been sent to the administrator.</div>
+    </div>
+  </div><!-- end #locked-card -->
+
+  <!-- ================================================================
+       CARD 3: Login Success Screen
+       ================================================================ -->
+  <div class="card" id="success-card" style="display:none">
+    <div class="success-box">
+      <!-- Green checkmark icon -->
+      <div class="success-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+        </svg>
+      </div>
+      <div class="lock-title" style="color:#1e5c2b">Login Successful</div>
+      <div class="lock-msg" style="margin-top:6px">
+        Welcome back, <strong id="welcome-name"></strong>
+      </div>
+    </div>
+  </div><!-- end #success-card -->
+</div><!-- end .page -->
+
+
+<script>
+  const LOGIN_API_URL = 'https://q8i1wyuoe6.execute-api.us-east-1.amazonaws.com/default/login';
+
+  const MAX_ATTEMPTS = 5;
+  const LOCK_DURATION = 600;
+
+  let attempts = 0;
+  let lockTimer = null;
+
+  // Fetch the user's real public IP address with multiple fallbacks
+  async function getRealIP() {
+    const ipServices = [
+      { url: 'https://api.ipify.org?format=json', parser: data => data.ip },
+      { url: 'https://api.my-ip.io/v2/ip.json', parser: data => data.ip },
+      { url: 'https://ipinfo.io/json', parser: data => data.ip },
+      { url: 'https://api64.ipify.org?format=json', parser: data => data.ip } // Supports IPv6
+    ];
+
+    for (const service of ipServices) {
+      try {
+        // Add a 3-second timeout to prevent hanging if an API is slow
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        const response = await fetch(service.url, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          const data = await response.json();
+          const ip = service.parser(data);
+          if (ip && ip !== '0.0.0.0') {
+            return ip;
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch IP from ${service.url}:`, error.message);
+      }
+    }
+    
+    console.error('All IP fetching services failed.');
+    return '0.0.0.0'; // Ultimate fallback if all APIs are unreachable or blocked
+  }
+
+  function generateAttemptId() {
+    return 'ATT-' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase();
+  }
+
+  function saveLocalRecord(username, ip, status) {
+    const records = JSON.parse(localStorage.getItem('sb_attempts') || '[]');
+    records.unshift({
+      id:        generateAttemptId(),
+      username:  username,
+      ipAddress: ip,
+      timestamp: new Date().toISOString(),
+      status:    status,
+      alertSent: status === 'Failed' ? 'Yes' : 'No',
+    });
+    localStorage.setItem('sb_attempts', JSON.stringify(records));
+  }
+
+  async function handleLogin() {
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value;
+
+    hideAlerts();
+
+    if (!u || !p) {
+      showError('Please enter both your username and password.');
+      return;
+    }
+
+    const btn = document.getElementById('login-btn');
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+
+    // Wait to get the real IP before sending the login payload
+    const ip = await getRealIP();
+
+    try {
+      const res  = await fetch(LOGIN_API_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ username: u, password: p, ipAddress: ip }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        saveLocalRecord(u, ip, 'Success');
+        document.getElementById('welcome-name').textContent = data.name || u;
+        showCard('success-card');
+
+      } else if (data.locked) {
+        saveLocalRecord(u, ip, 'Failed');
+        lockAccount(data.lockSeconds || LOCK_DURATION);
+
+      } else {
+        attempts = data.failedCount || (attempts + 1);
+        saveLocalRecord(u, ip, 'Failed');
+
+        document.getElementById('username').classList.add('error');
+        document.getElementById('password').classList.add('error');
+        document.getElementById('password').value = '';
+
+        updateDots();
+        document.getElementById('attempt-bar').style.display = 'block';
+        document.getElementById('attempt-count').textContent = attempts + ' / ' + MAX_ATTEMPTS;
+
+        if (attempts >= MAX_ATTEMPTS) {
+          lockAccount(LOCK_DURATION);
+          return;
+        }
+
+        const remaining = MAX_ATTEMPTS - attempts;
+        if (attempts >= 3) {
+          showWarn(remaining + ' attempt' + (remaining === 1 ? '' : 's') + ' remaining before your account is locked.');
+        } else {
+          showError('Incorrect username or password. ' + remaining + ' attempt' + (remaining === 1 ? '' : 's') + ' remaining.');
+        }
+      }
+    } catch (err) {
+      console.error('Login request failed:', err);
+      showError('Connection error. Please try again.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Sign in';
+    }
+  }
+
+  // Lock the account and start countdown
+  function lockAccount(duration) {
+    showCard('locked-card');
+
+    let secs = duration || LOCK_DURATION;
+    updateCountdown(secs);
+
+    // Tick every second
+    lockTimer = setInterval(function () {
+      secs--;
+      updateCountdown(secs);
+
+      // When timer hits zero, reset everything and show login form
+      if (secs <= 0) {
+        clearInterval(lockTimer);
+        lockTimer = null;
+        attempts = 0;
+        updateDots();
+        document.getElementById('attempt-bar').style.display = 'none';
+        document.getElementById('attempt-count').textContent = '0 / ' + MAX_ATTEMPTS;
+        showCard('login-card');
+      }
+    }, 1000);
+  }
+
+  // Update the MM:SS countdown display
+  function updateCountdown(totalSeconds) {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    // padStart ensures single digits show as "09" not "9"
+    document.getElementById('countdown').textContent =
+      String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+  }
+
+  // Update the 5-dot progress indicator
+  // Each dot with an index <= attempts count turns red (filled)
+  function updateDots() {
+    for (let i = 1; i <= MAX_ATTEMPTS; i++) {
+      const dot = document.getElementById('d' + i);
+      // Add "filled" class to colour the dot red, remove it to reset
+      dot.className = 'dot' + (i <= attempts ? ' filled' : '');
+    }
+  }
+
+  // Show only one card at a time (login, locked, or success)
+  function showCard(id) {
+    ['login-card', 'locked-card', 'success-card'].forEach(function (cardId) {
+      document.getElementById(cardId).style.display = (cardId === id) ? 'block' : 'none';
+    });
+  }
+
+  // Alert helpers
+
+  // Show the red error alert with a custom message
+  function showError(msg) {
+    document.getElementById('alert-error-text').textContent = msg;
+    document.getElementById('alert-error').classList.add('show');
+  }
+
+  // Show the amber warning alert with a custom message
+  function showWarn(msg) {
+    document.getElementById('alert-warn-text').textContent = msg;
+    document.getElementById('alert-warn').classList.add('show');
+  }
+
+  // Hide both alerts and remove red borders from input fields
+  function hideAlerts() {
+    document.getElementById('alert-error').classList.remove('show');
+    document.getElementById('alert-warn').classList.remove('show');
+    document.getElementById('username').classList.remove('error');
+    document.getElementById('password').classList.remove('error');
+  }
+
+  // Keyboard shortcuts
+
+  document.getElementById('username').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      document.getElementById('password').focus();
+    }
+  });
+
+  document.getElementById('password').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      handleLogin();
+    }
+  });
+</script>
+
+</body>
+</html>
