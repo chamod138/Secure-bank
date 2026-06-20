@@ -1,0 +1,297 @@
+import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
+import { DynamoDBClient, PutItemCommand, GetItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import crypto from 'crypto';
+import { promisify } from 'util';
+
+// Promisify crypto methods to avoid blocking the Lambda event loop
+const pbkdf2Async = promisify(crypto.pbkdf2);
+const randomBytesAsync = promisify(crypto.randomBytes);
+
+const sns = new SNSClient({ region: process.env.AWS_REGION_NAME || process.env.AWS_REGION });
+const dynamo = new DynamoDBClient({ region: process.env.AWS_REGION });
+
+const USERS_TABLE = process.env.USERS_TABLE || 'Users';
+const ATTEMPTS_TABLE = process.env.ATTEMPTS_TABLE || 'FailedAttempts';
+const MAX_ATTEMPTS = 5;
+const LOCK_SECONDS = 600;
+
+const CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+export const handler = async (event) => {
+    // 1. SECURITY: Deep clone and redact passwords from logs
+    const safeEvent = JSON.parse(JSON.stringify(event));
+    
+    // Handle API Gateway wrapped events (e.g., { "body": "{\"password\":\"123\"}" })
+    if (safeEvent.body) {
+        try {
+            const body = typeof safeEvent.body === 'string' ? JSON.parse(safeEvent.body) : safeEvent.body;
+            if (body.password) body.password = '***REDACTED***';
+            safeEvent.body = typeof safeEvent.body === 'string' ? JSON.stringify(body) : body;
+        } catch (e) { /* ignore parse errors */ }
+    }
+    
+    // Handle flat events (e.g., Lambda Console Test: { "password": "123" })
+    if (safeEvent.password) {
+        safeEvent.password = '***REDACTED***';
+    }
+    
+    console.log('Received event:', JSON.stringify(safeEvent, null, 2));
+    
+    if (event.requestContext?.http?.method === 'OPTIONS') {
+        return { statusCode: 200, headers: CORS_HEADERS, body: '' };
+    }
+    
+    let requestBody = {};
+    if (event.username || event.email) {
+        requestBody = event;
+    } else if (event.body) {
+        try {
+            requestBody = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
+        } catch (e) {
+            return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Invalid JSON body' }) };
+        }
+    }
+    
+    if (requestBody.username && requestBody.email && requestBody.password) {
+        return await handleRegister(requestBody);
+    }
+    
+    if (requestBody.username && requestBody.password && !requestBody.email) {
+        return await handleLogin(requestBody);
+    }
+    
+    return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Invalid request payload' }) };
+};
+
+// ==========================================
+// REGISTER HANDLER
+// ==========================================
+async function handleRegister(body) {
+    const { username, email, fullName, password, adminKey } = body;
+    
+    if (process.env.ADMIN_SECRET && adminKey !== process.env.ADMIN_SECRET) {
+        return { statusCode: 403, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Invalid admin key' }) };
+    }
+    
+    if (!username || !email || !password) {
+        return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Missing required fields' }) };
+    }
+    
+    if (username.length < 3) return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Username must be at least 3 characters' }) };
+    if (password.length < 8) return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Password must be at least 8 characters' }) };
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Invalid email format' }) };
+    }
+
+    // Hash password asynchronously (Non-blocking)
+    const salt = (await randomBytesAsync(16)).toString('hex');
+    const hash = (await pbkdf2Async(password, salt, 100000, 64, 'sha512')).toString('hex');
+    const passwordHash = `${salt}:${hash}`;
+    
+    try {
+        // FIX: Use ConditionExpression to prevent race conditions (Atomic check-and-save)
+        await dynamo.send(new PutItemCommand({
+            TableName: USERS_TABLE,
+            Item: {
+                username: { S: username },
+                email: { S: email },
+                fullName: { S: fullName || username },
+                passwordHash: { S: passwordHash },
+                failedCount: { N: '0' },
+                createdAt: { S: new Date().toISOString() }
+            },
+            ConditionExpression: 'attribute_not_exists(username)'
+        }));
+        
+        return {
+            statusCode: 201,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ success: true, message: `User "${username}" created`, user: { username, email } })
+        };
+    } catch (err) {
+        if (err.name === 'ConditionalCheckFailedException') {
+            return { statusCode: 409, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Username or email already exists' }) };
+        }
+        console.error('DynamoDB save error:', err);
+        return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Database error' }) };
+    }
+}
+
+// ==========================================
+// LOGIN HANDLER
+// ==========================================
+async function handleLogin(body) {
+    const { username, password, ipAddress } = body;
+    const ip = ipAddress || 'Unknown';
+    const now = Date.now();
+    
+    if (!username || !password) {
+        return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Username and password required' }) };
+    }
+    
+    let user;
+    try {
+        const result = await dynamo.send(new GetItemCommand({
+            TableName: USERS_TABLE,
+            Key: { username: { S: username } }
+        }));
+        user = result.Item;
+    } catch (err) {
+        console.error('DynamoDB error:', err);
+        return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Database error' }) };
+    }
+    
+    // FIX: Do NOT write to FailedAttempts table if user doesn't exist. 
+    // This prevents attackers from spamming your DB with writes for random usernames (DoS protection).
+    if (!user) {
+        return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ success: false, message: 'Invalid credentials' }) };
+    }
+    
+    // Check if account is locked
+    const lockedUntil = user.lockedUntil ? Number(user.lockedUntil.N) : 0;
+    if (lockedUntil > now) {
+        const remainingSeconds = Math.ceil((lockedUntil - now) / 1000);
+        return {
+            statusCode: 200,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ success: false, locked: true, message: `Account locked. Try again in ${remainingSeconds}s`, remainingSeconds })
+        };
+    }
+    
+    // Verify password asynchronously
+    const [salt, storedHash] = user.passwordHash.S.split(':');
+    const verifyHash = (await pbkdf2Async(password, salt, 100000, 64, 'sha512')).toString('hex');
+    const isValid = crypto.timingSafeEqual(Buffer.from(verifyHash, 'hex'), Buffer.from(storedHash, 'hex'));
+    
+    if (isValid) {
+        // Reset failed attempts on success
+        await dynamo.send(new UpdateItemCommand({
+            TableName: USERS_TABLE,
+            Key: { username: { S: username } },
+            UpdateExpression: 'SET failedCount = :zero REMOVE lockedUntil',
+            ExpressionAttributeValues: { ':zero': { N: '0' } }
+        }));
+        
+        return {
+            statusCode: 200,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ success: true, name: user.fullName?.S || username, message: 'Login successful' })
+        };
+    }
+    
+    // --- FAILED LOGIN LOGIC ---
+    
+    // FIX: Use atomic increment to prevent race conditions if multiple bad passwords are tried simultaneously
+    const updateResult = await dynamo.send(new UpdateItemCommand({
+        TableName: USERS_TABLE,
+        Key: { username: { S: username } },
+        UpdateExpression: 'SET failedCount = if_not_exists(failedCount, :zero) + :inc',
+        ExpressionAttributeValues: {
+            ':zero': { N: '0' },
+            ':inc': { N: '1' }
+        },
+        ReturnValues: 'ALL_NEW'
+    }));
+    
+    const newFailedCount = Number(updateResult.Attributes.failedCount.N);
+    const isLocked = newFailedCount >= MAX_ATTEMPTS;
+    
+    // If locked, set the lockout timestamp
+    if (isLocked) {
+        await dynamo.send(new UpdateItemCommand({
+            TableName: USERS_TABLE,
+            Key: { username: { S: username } },
+            UpdateExpression: 'SET lockedUntil = :lockUntil',
+            ExpressionAttributeValues: { ':lockUntil': { N: String(now + (LOCK_SECONDS * 1000)) } }
+        }));
+    }
+    
+    // Record the attempt (Only done because we confirmed the user exists above)
+    await recordFailedAttempt(username, ip, newFailedCount, isLocked);
+    
+    if (process.env.ADMIN_EMAIL) {
+        await sendAlertEmail(username, newFailedCount, ip, isLocked);
+    }
+    
+    return {
+        statusCode: 200,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({
+            success: false,
+            message: 'Invalid credentials',
+            remainingAttempts: Math.max(0, MAX_ATTEMPTS - newFailedCount),
+            locked: isLocked,
+            lockSeconds: isLocked ? LOCK_SECONDS : 0
+        })
+    };
+}
+
+// ==========================================
+// HELPER FUNCTIONS
+// ==========================================
+async function recordFailedAttempt(username, ipAddress, attemptCount, isLocked) {
+    const attemptId = `ATT-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    
+    // Calculate TTL (e.g., delete after 30 days to save storage costs)
+    const ttl = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60); 
+
+    try {
+        await dynamo.send(new PutItemCommand({
+            TableName: ATTEMPTS_TABLE,
+            Item: {
+                attemptId: { S: attemptId },
+                username: { S: username },
+                ipAddress: { S: ipAddress },
+                timestamp: { S: new Date().toISOString() },
+                status: { S: 'Failed' },
+                attemptCount: { N: String(attemptCount) },
+                accountLocked: { BOOL: isLocked },
+                alertSent: { BOOL: false },
+                expiresAt: { N: String(ttl) } // Required for DynamoDB TTL
+            }
+        }));
+    } catch (err) {
+        console.error('Failed to record attempt:', err);
+    }
+}
+async function sendAlertEmail(username, attemptCount, ipAddress, isLocked) {
+    const topicArn = process.env.ADMIN_TOPIC_ARN;
+    if (!topicArn) return;
+
+    const subject = `[Security Alert] Failed login for ${username}`;
+    const message = `Security Alert\n\nFailed login attempt for: ${username}\n- IP: ${ipAddress}\n- Attempts: ${attemptCount}/${MAX_ATTEMPTS}\n- Time: ${new Date().toISOString()}\n- Locked: ${isLocked ? 'YES' : 'No'}`;
+// ADD THIS TEMPORARILY — remove after testing
+if (event.testAlert) {
+    const topicArn = process.env.ADMIN_TOPIC_ARN;
+    if (!topicArn) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'ADMIN_TOPIC_ARN not set' }) };
+    }
+    try {
+        await sns.send(new PublishCommand({
+            TopicArn: topicArn,
+            Subject: '[TEST] Security Alert',
+            Message: 'This is a test alert from SecureBank Lambda.',
+        }));
+        return { statusCode: 200, body: JSON.stringify({ success: true, message: 'Test alert sent' }) };
+    } catch (err) {
+        console.error('SNS test failed:', err);
+        return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    }
+}
+    try {
+        await sns.send(new PublishCommand({
+            TopicArn: topicArn,
+            Subject: subject,
+            Message: message,
+        }));
+    } catch (err) {
+        console.error('Failed to send SNS alert:', err);
+    }
+}
