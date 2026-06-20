@@ -13,7 +13,6 @@ A secure, serverless authentication system built with AWS Lambda, featuring user
 - **AWS Lambda** - Serverless compute for authentication logic
 - **Amazon DynamoDB** - NoSQL database for user data and attempt tracking
 - **Amazon SNS** - Security alert notifications
-- **Amazon SES** - Email notifications (optional)
 - **Amazon API Gateway** - RESTful API endpoints
 
 
@@ -41,13 +40,4 @@ This project demonstrates ongoing collaborative development with clear commit hi
 | npm | v9.x or higher | Package management |
 | AWS CLI | v2.x | AWS resource management |
 | Git | Latest | Version control |
-
-### Environment Setup
-
-#### 1. **Install Node.js Dependencies**
-
-```bash
-# Clone the repository
-git clone <your-repository-url>
-cd securebank-auth
 
