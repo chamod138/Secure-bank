@@ -1,0 +1,573 @@
+
+
+/* ---------- Reset & Base ---------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #f0f4f9;
+  color: #1a2535;
+  min-height: 100vh;
+}
+
+/* ---------- Page Layout ---------- */
+/* Centered single-column layout used by login and reset pages */
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+/* Full-width layout used by the admin dashboard */
+.page-wide {
+  min-height: 100vh;
+  padding: 2rem 1rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* ---------- SecureBank Header / Branding ---------- */
+.bank-header {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+
+.bank-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+/* Square icon with a bank symbol */
+.logo-icon {
+  width: 36px;
+  height: 36px;
+  background: #185FA5;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: white;
+}
+
+.bank-name {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1a2535;
+  letter-spacing: -0.3px;
+}
+
+.bank-sub {
+  font-size: 13px;
+  color: #6b7a90;
+}
+
+/* ---------- Card Container ---------- */
+/* White card that wraps the form content */
+.card {
+  background: #ffffff;
+  border: 1px solid #dce3ed;
+  border-radius: 12px;
+  padding: 2rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a2535;
+  margin-bottom: 4px;
+}
+
+.card-sub {
+  font-size: 13px;
+  color: #6b7a90;
+  margin-bottom: 1.5rem;
+}
+
+/* ---------- Form Fields ---------- */
+.field {
+  margin-bottom: 1rem;
+}
+
+.field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #3d4f63;
+  margin-bottom: 6px;
+}
+
+.field input {
+  width: 100%;
+  height: 40px;
+  border: 1px solid #c8d3e0;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-size: 15px;
+  background: #ffffff;
+  color: #1a2535;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.field input:focus {
+  border-color: #185FA5;
+  box-shadow: 0 0 0 3px rgba(24, 95, 165, 0.14);
+}
+
+/* Red border shown when the field has a validation error */
+.field input.error {
+  border-color: #cc3333;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  width: 100%;
+  height: 42px;
+  border-radius: 8px;
+  border: none;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+/* Primary navy blue button */
+.btn-primary {
+  background: #185FA5;
+  color: #ffffff;
+}
+
+.btn-primary:hover {
+  opacity: 0.88;
+}
+
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Secondary outlined button (e.g. Back button) */
+.btn-secondary {
+  background: #ffffff;
+  color: #3d4f63;
+  border: 1px solid #c8d3e0;
+  width: auto;
+  padding: 0 16px;
+  font-size: 13px;
+  height: 36px;
+}
+
+.btn-secondary:hover {
+  background: #f5f7fa;
+}
+
+/* Danger button for destructive actions (Clear All) */
+.btn-danger {
+  background: #cc3333;
+  color: #ffffff;
+  width: auto;
+  padding: 0 16px;
+  font-size: 13px;
+  height: 36px;
+}
+
+.btn-danger:hover {
+  opacity: 0.88;
+}
+
+/* ---------- Alert / Notification Boxes ---------- */
+/* Hidden by default; add class "show" to reveal */
+.alert {
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 13px;
+  margin-bottom: 1rem;
+  display: none;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.5;
+}
+
+.alert.show {
+  display: flex;
+}
+
+.alert svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Red – wrong credentials / errors */
+.alert-danger {
+  background: #fff0f0;
+  color: #881a1a;
+  border: 1px solid #f5b8b8;
+}
+
+/* Green – success confirmation */
+.alert-success {
+  background: #edfaf0;
+  color: #1e5c2b;
+  border: 1px solid #9cdcac;
+}
+
+/* Amber – warning (attempts remaining) */
+.alert-warning {
+  background: #fffbea;
+  color: #7a4d00;
+  border: 1px solid #f5d98c;
+}
+
+/* ---------- Attempt Tracker (5 dots) ---------- */
+.attempt-bar {
+  margin-bottom: 1.1rem;
+}
+
+.attempt-label {
+  font-size: 12px;
+  color: #6b7a90;
+  margin-bottom: 7px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Row of 5 pill-shaped dots */
+.attempt-dots {
+  display: flex;
+  gap: 6px;
+}
+
+/* Each dot represents one failed attempt */
+.dot {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: #e5eaf0;
+  border: 1px solid #d0d8e4;
+  transition: background 0.3s, border-color 0.3s;
+}
+
+/* Filled = failed attempt */
+.dot.filled {
+  background: #cc3333;
+  border-color: #991f1f;
+}
+
+/* ---------- Divider ---------- */
+.divider {
+  border: none;
+  border-top: 1px solid #eaecf0;
+  margin: 1.25rem 0;
+}
+
+/* ---------- Utility Links ---------- */
+.link-row {
+  text-align: center;
+  font-size: 13px;
+  color: #6b7a90;
+}
+
+.link-row a {
+  color: #185FA5;
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.link-row a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Account Locked Screen ---------- */
+.locked-box {
+  text-align: center;
+  padding: 0.75rem 0;
+}
+
+.lock-icon {
+  width: 52px;
+  height: 52px;
+  background: #fff0f0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+}
+
+.lock-icon svg {
+  width: 26px;
+  height: 26px;
+  fill: #881a1a;
+}
+
+.lock-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #1a2535;
+  margin-bottom: 6px;
+}
+
+.lock-msg {
+  font-size: 13px;
+  color: #6b7a90;
+  margin-bottom: 14px;
+}
+
+/* Large red countdown timer display */
+.countdown {
+  font-size: 32px;
+  font-weight: 700;
+  color: #cc3333;
+  letter-spacing: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lock-note {
+  font-size: 12px;
+  color: #8a95a3;
+  margin-top: 10px;
+}
+
+/* ---------- Success Screen ---------- */
+.success-box {
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+.success-icon {
+  width: 52px;
+  height: 52px;
+  background: #edfaf0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+}
+
+.success-icon svg {
+  width: 26px;
+  height: 26px;
+  fill: #1e5c2b;
+}
+
+/* ---------- Admin Dashboard – Summary Cards ---------- */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.summary-card {
+  background: #ffffff;
+  border: 1px solid #dce3ed;
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.summary-label {
+  font-size: 12px;
+  color: #6b7a90;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.summary-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #185FA5;
+}
+
+/* Locked accounts value shown in red */
+.summary-value.danger {
+  color: #cc3333;
+}
+
+/* ---------- Admin Dashboard – Table ---------- */
+.table-panel {
+  background: #ffffff;
+  border: 1px solid #dce3ed;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #eaecf0;
+  flex-wrap: wrap;
+}
+
+.table-toolbar h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a2535;
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Search input in toolbar */
+.search-input {
+  height: 36px;
+  border: 1px solid #c8d3e0;
+  border-radius: 7px;
+  padding: 0 12px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  min-width: 180px;
+  transition: border-color 0.15s;
+}
+
+.search-input:focus {
+  border-color: #185FA5;
+  box-shadow: 0 0 0 3px rgba(24,95,165,0.12);
+}
+
+/* Scrollable table wrapper for mobile */
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+thead th {
+  background: #f5f7fa;
+  color: #6b7a90;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid #eaecf0;
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 11px 14px;
+  border-bottom: 1px solid #f0f3f7;
+  color: #1a2535;
+  vertical-align: middle;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr:hover {
+  background: #fafbfd;
+}
+
+/* Locked rows highlighted in red tint */
+tbody tr.locked-row {
+  background: #fff5f5;
+}
+
+tbody tr.locked-row:hover {
+  background: #ffe8e8;
+}
+
+/* Status badge pills */
+.badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge-fail {
+  background: #fff0f0;
+  color: #881a1a;
+  border: 1px solid #f5b8b8;
+}
+
+.badge-yes {
+  background: #fff0f0;
+  color: #881a1a;
+}
+
+/* Empty state shown when no records exist */
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #8a95a3;
+  font-size: 14px;
+}
+
+/* ---------- Admin page header row ---------- */
+.admin-header-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-header-row .bank-logo {
+  justify-content: flex-start;
+  flex: 1;
+}
+
+/* ---------- Responsive – Mobile ---------- */
+@media (max-width: 600px) {
+  .card {
+    padding: 1.5rem 1.25rem;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+
+  .table-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-input {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .admin-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

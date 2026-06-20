@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SecureBank – Register User</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="page">
+
+  <div class="bank-header">
+    <div class="bank-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2L2 7v2h20V7L12 2zm-8 9v6H2v2h20v-2h-2v-6h-2v6h-4v-6h-2v6H8v-6H4zm8-5a1 1 0 110 2 1 1 0 010-2z"/>
+        </svg>
+      </div>
+      <span class="bank-name">SecureBank</span>
+    </div>
+    <div class="bank-sub">Admin Portal – User Registration</div>
+  </div>
+
+  <!-- ================================================================
+       CARD 1: Registration Form
+       ================================================================ -->
+  <div class="card" id="register-card">
+    <div class="card-title">Register New User</div>
+    <div class="card-sub">Only administrators can create accounts</div>
+
+    <!-- Success alert -->
+    <div class="alert alert-success" id="alert-success" role="alert">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+      </svg>
+      <span id="alert-success-text"></span>
+    </div>
+
+    <!-- Error alert -->
+    <div class="alert alert-danger" id="alert-error" role="alert">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+      </svg>
+      <span id="alert-error-text"></span>
+    </div>
+
+    <div class="field">
+      <label for="reg-username">Username</label>
+      <input type="text" id="reg-username" placeholder="e.g. jane.doe" autocomplete="off" />
+    </div>
+
+    <div class="field">
+      <label for="reg-fullname">Full Name</label>
+      <input type="text" id="reg-fullname" placeholder="e.g. Jane Doe" autocomplete="off" />
+    </div>
+
+    <div class="field">
+      <label for="reg-email">Email Address</label>
+      <input type="email" id="reg-email" placeholder="e.g. jane@example.com" autocomplete="off" />
+    </div>
+
+    <div class="field">
+      <label for="reg-password">Password</label>
+      <input type="password" id="reg-password" placeholder="Minimum 8 characters" autocomplete="new-password" />
+    </div>
+
+    <div class="field">
+      <label for="reg-confirm">Confirm Password</label>
+      <input type="password" id="reg-confirm" placeholder="Re-enter password" autocomplete="new-password" />
+    </div>
+
+    <div class="field">
+      <label for="reg-adminkey">Admin Secret Key</label>
+      <input type="password" id="reg-adminkey" placeholder="Enter admin secret key" autocomplete="off" />
+    </div>
+
+    <button class="btn btn-primary" id="register-btn" onclick="handleRegister()">
+      Create Account
+    </button>
+
+    <hr class="divider" />
+
+    <div class="link-row">
+      <a href="login.html">&larr; Back to Sign In</a>
+    </div>
+  </div>
+
+</div>
+
+<script>
+
+  const REGISTER_API_URL = 'https://q8i1wyuoe6.execute-api.us-east-1.amazonaws.com/default/register';
+
+  async function handleRegister() {
+    const username  = document.getElementById('reg-username').value.trim();
+    const fullName  = document.getElementById('reg-fullname').value.trim();
+    const email     = document.getElementById('reg-email').value.trim();
+    const password  = document.getElementById('reg-password').value;
+    const confirm   = document.getElementById('reg-confirm').value;
+    const adminKey  = document.getElementById('reg-adminkey').value;
+
+    hideAlerts();
+    clearErrors();
+
+    // Client-side validation
+    let valid = true;
+
+    if (!username || username.length < 3) {
+      document.getElementById('reg-username').classList.add('error');
+      valid = false;
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      document.getElementById('reg-email').classList.add('error');
+      valid = false;
+    }
+    if (!password || password.length < 8) {
+      document.getElementById('reg-password').classList.add('error');
+      valid = false;
+    }
+    if (password !== confirm) {
+      document.getElementById('reg-confirm').classList.add('error');
+      valid = false;
+    }
+    if (!adminKey) {
+      document.getElementById('reg-adminkey').classList.add('error');
+      valid = false;
+    }
+
+    if (!valid) {
+      showError('Please fix the highlighted fields. Password must be at least 8 characters and both password fields must match.');
+      return;
+    }
+
+    const btn = document.getElementById('register-btn');
+    btn.disabled = true;
+    btn.textContent = 'Creating account…';
+
+    try {
+      const res  = await fetch(REGISTER_API_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ username, fullName, email, password, adminKey }),
+      });
+      const data = await res.json();
+
+      if (res.ok ) {
+        showSuccess('User "' + username + '" created successfully.');
+        clearForm();
+      } else if (res.status === 403) {
+        showError('Invalid admin key. Registration denied.');
+        document.getElementById('reg-adminkey').classList.add('error');
+      } else if (res.status === 409) {
+        showError(data.error || 'Username already exists.');
+        document.getElementById('reg-username').classList.add('error');
+      } else {
+        console.log(res.status)
+        showError(data.error || 'Registration failed. Please try again.');
+      }
+    } catch (err) {
+      console.error('Register request failed:', err);
+      showError('Connection error. Please try again.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Create Account';
+    }
+  }
+
+  function showSuccess(msg) {
+    document.getElementById('alert-success-text').textContent = msg;
+    document.getElementById('alert-success').classList.add('show');
+  }
+
+  function showError(msg) {
+    document.getElementById('alert-error-text').textContent = msg;
+    document.getElementById('alert-error').classList.add('show');
+  }
+
+  function hideAlerts() {
+    document.getElementById('alert-success').classList.remove('show');
+    document.getElementById('alert-error').classList.remove('show');
+  }
+
+  function clearErrors() {
+    ['reg-username','reg-fullname','reg-email','reg-password','reg-confirm','reg-adminkey'].forEach(function(id) {
+      document.getElementById(id).classList.remove('error');
+    });
+  }
+
+  function clearForm() {
+    ['reg-username','reg-fullname','reg-email','reg-password','reg-confirm','reg-adminkey'].forEach(function(id) {
+      document.getElementById(id).value = '';
+    });
+  }
+
+  // Enter key submits
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') handleRegister();
+  });
+
+</script>
+
+</body>
+</html>

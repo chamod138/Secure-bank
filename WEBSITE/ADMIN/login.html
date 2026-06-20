@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SecureBank – Admin Sign In</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="page">
+
+  <div class="bank-header">
+    <div class="bank-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2L2 7v2h20V7L12 2zm-8 9v6H2v2h20v-2h-2v-6h-2v6h-4v-6h-2v6H8v-6H4zm8-5a1 1 0 110 2 1 1 0 010-2z"/>
+        </svg>
+      </div>
+      <span class="bank-name">SecureBank</span>
+    </div>
+    <div class="bank-sub">Admin Portal</div>
+  </div>
+
+  <!-- Login Form -->
+  <div class="card" id="login-card">
+    <div class="card-title">Sign in</div>
+    <div class="card-sub">Enter your credentials to access your account</div>
+
+    <div class="alert alert-danger" id="alert-error" role="alert">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+      </svg>
+      <span id="alert-error-text"></span>
+    </div>
+
+    <div class="field">
+      <label for="username">Username</label>
+      <input type="text" id="username" placeholder="e.g. admin" autocomplete="username" />
+    </div>
+
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" />
+    </div>
+
+    <button class="btn btn-primary" id="login-btn" onclick="handleLogin()">Sign in</button>
+  </div>
+
+</div>
+
+<script>
+  function handleLogin() {
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value;
+
+    hideAlerts();
+
+    if (!u || !p) {
+      showError('Please enter both your username and password.');
+      return;
+    }
+
+    if (u === 'admin' && p === 'admin123') {
+      sessionStorage.setItem('sb_admin', 'true');
+      window.location.href = 'admin.html';
+    } else {
+      document.getElementById('username').classList.add('error');
+      document.getElementById('password').classList.add('error');
+      document.getElementById('password').value = '';
+      showError('Incorrect username or password.');
+    }
+  }
+
+  function showError(msg) {
+    document.getElementById('alert-error-text').textContent = msg;
+    document.getElementById('alert-error').classList.add('show');
+  }
+
+  function hideAlerts() {
+    document.getElementById('alert-error').classList.remove('show');
+    document.getElementById('username').classList.remove('error');
+    document.getElementById('password').classList.remove('error');
+  }
+
+  document.getElementById('username').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') document.getElementById('password').focus();
+  });
+
+  document.getElementById('password').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') handleLogin();
+  });
+</script>
+
+</body>
+</html>
